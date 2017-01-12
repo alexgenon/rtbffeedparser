@@ -6,18 +6,21 @@ import scala.concurrent.duration._
 import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.http.scaladsl.model.ContentType.WithCharset
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, MediaTypes, StatusCodes}
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.marshalling.{Marshaller, ToEntityMarshaller}
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.Http
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
-import org.json4s.{DefaultFormats, Formats, Serializer, native,TypeInfo}
-import org.json4s.JsonAST.{JString,JValue}
+import org.json4s.{DefaultFormats, Formats, Serializer, TypeInfo, native}
+import org.json4s.JsonAST.{JString, JValue}
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
+import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
+import akka.stream.scaladsl.{Flow, Sink, Source}
+import domain.Song
 import feedpolling.FeedPollingActor.PollNow
 
 import scala.concurrent.Future
@@ -35,6 +38,8 @@ import scala.concurrent.Future
 /**
   * SongToJSonMarshaling, inspired by
   * {@link https://github.com/hseeberger/akka-http-json/}
+  * and {@link http://stackoverflow.com/questions/31626759/how-to-write-a-custom-serializer-for-java-8-localdatetime}
+  * for LocalDateTime serialization
   *
   */
 
@@ -66,43 +71,52 @@ trait SongToJsonMarshalling {
 }
 
 class RestApi (implicit val system:ActorSystem) extends SongToJsonMarshalling{
-  implicit val materializer = ActorMaterializer()
-  implicit val timeout = Timeout(10 seconds)
+  implicit private val materializer = ActorMaterializer()
+  implicit private val timeout = Timeout(10 seconds)
   // needed for the future flatMap/onComplete in the end
-  implicit val executionContext = system.dispatcher
-  val songRepositoryActor = system.actorSelection("/user/songRepositoryActor")
-  val feedPollingActor = system.actorSelection("/user/feedPollingActor")
+  implicit private  val executionContext = system.dispatcher
+  private val songRepositoryActor = system.actorSelection("/user/songRepositoryActor")
+  private val feedPollingActor = system.actorSelection("/user/feedPollingActor")
 
-  val feedRoot = ConfigFactory.load.getString("rtbffeedparser.api.root")
+  private val feedRoot = ConfigFactory.load.getString("rtbffeedparser.api.root")
   private var serverBinding:Future[Http.ServerBinding]=
     Future.failed(new IllegalStateException("Server not started"))
 
-  val route = {
+  private val routes = {
     pathPrefix(feedRoot) {
-      path("songs") {
-        get {
-          val fullList = (songRepositoryActor ? GetFullList).mapTo[FullList]
-          complete (fullList.map(_.songs))
-        }
+      pathPrefix("songs") {
+        pathEnd {
+          get {
+            val fullList = (songRepositoryActor ? GetFullList).mapTo[FullList]
+            complete(fullList.map(_.songs))
+          }
+        }/* ~ path("subscribe"){
+
+        }*/
       } ~ path("refresh_now") {
        post {
          feedPollingActor ! PollNow
          complete(StatusCodes.OK,"Refresh requested")
        }
       }
-    } ~ path("ping") {
-      get {
-        complete {
-          val f: WithCharset = ContentTypes.`text/html(UTF-8)`
-          HttpEntity(f, "coucou gamin !")
+    } ~ pathPrefix("hello") {
+      pathEnd {
+        get {
+          complete {
+            val f: WithCharset = MediaTypes.`text/plain`.toContentType(HttpCharsets.`UTF-8`)
+            HttpEntity(f, "coucou gamin !")
+          }
         }
       }
     }
   }
 
+  val test = {
+    Source.queue(100,OverflowStrategy.backpressure).to(Sink.foreach(println))
+  }
 
   def start = {
-    serverBinding = Http().bindAndHandle(route,"localhost",8080)
+    serverBinding = Http().bindAndHandle(routes,"localhost",8080)
   }
 
   def stop = {

@@ -32,11 +32,11 @@ package object RtbfJsonProtocol {
       val mapped = song.groupBy[String](_._1)
         val artist = extractStringValue(
           mapped.get("artistName").orElse(mapped.get("serviceName"))
-        ).get
+        ).getOrElse("")
         val songName = extractStringValue(
           mapped.get("name").orElse(mapped.get("programmeName"))
-        ).get
-        val imageURL = extractStringValue(mapped.get("imageUrl")).get
+        ).getOrElse("")
+        val imageURL = extractStringValue(mapped.get("imageUrl")).getOrElse("")
         val startTime =  extractStringValue(mapped.get("startTime")).map(timeFromStr).get
         val endTime =  extractStringValue(mapped.get("stopTime")).map(timeFromStr).get
         Song(artist,songName,startTime,endTime,imageURL)

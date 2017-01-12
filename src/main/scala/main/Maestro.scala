@@ -1,6 +1,7 @@
 package main
 
 import akka.actor.{ActorSystem, Props}
+import broadcaster.BroadCastActor
 import com.typesafe.config.ConfigFactory
 import feedpolling.FeedPollingActor
 import feedpolling.FeedPollingActor.UpdateURL
@@ -30,6 +31,7 @@ object Maestro {
     val defaultPollStationId = config.getString("rtbffeedparser.feedpoller.defaults.stationid")
     val songRepositoryActor = akkaSystem.actorOf(Props(classOf[SongRepositoryActor]),"songRepositoryActor")
     val feedPollingActor = akkaSystem.actorOf(Props(classOf[FeedPollingActor],songRepositoryActor),"feedPollingActor")
+    val broadCastActor = akkaSystem.actorOf(Props(classOf[BroadCastActor]),"broadCastActor")
     val restApi = new RestApi
     restApi.start
     feedPollingActor ! UpdateURL(defaultPollURL,defaultPollStationId)
