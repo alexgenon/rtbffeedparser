@@ -1,4 +1,4 @@
-package rtbfjsonprotocol
+package protocols
 
 import RtbfJsonProtocol._
 import org.scalatest.{FlatSpec, Matchers}

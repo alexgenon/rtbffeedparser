@@ -11,6 +11,7 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "2.1.6" % "test",
   // Akka
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+  "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
   "com.typesafe.akka" %% "akka-remote" % akkaVersion,
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
   "org.json4s" %% "json4s-native" % "3.5.0",

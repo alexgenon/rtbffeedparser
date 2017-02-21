@@ -1,4 +1,4 @@
-package rtbfjsonprotocol
+package protocols
 import domain.Song
 import java.time.{LocalDateTime, ZoneOffset}
 
@@ -12,8 +12,6 @@ package object RtbfJsonProtocol {
   import org.json4s.native.JsonMethods._
   private implicit val formats = DefaultFormats
 
-  private lazy val epochTime = LocalDateTime.ofEpochSecond(0,0,ZoneOffset.UTC)
-
   private def extractStringValue(jsonLine: Option[List[(String,JValue)]]):Option[String] =
     jsonLine.map(list=>list.head._2).map(jval => jval.extract[String])
 
@@ -23,8 +21,7 @@ package object RtbfJsonProtocol {
 
   def parseFeed(feed:String): Try[List[Song]] = Try {
     val parsed = parse(feed) \ "results"
-    val mergedFeed = (JArray(List(parsed \ "now")) ++ (parsed \ "previous"))
-      .asInstanceOf[JArray].arr
+    val mergedFeed = (JArray(List(parsed \ "now")) ++ (parsed \ "previous")).asInstanceOf[JArray].arr
 
     val songsList = for{
       JObject(song) <- mergedFeed

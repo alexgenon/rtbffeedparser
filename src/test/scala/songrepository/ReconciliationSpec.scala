@@ -6,6 +6,7 @@ import scala.concurrent.duration._
 import java.time.LocalDateTime
 import java.time.temporal.{ChronoUnit, TemporalUnit}
 
+import actors.SongRepositoryActor
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
@@ -15,7 +16,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 /**
   * Created by alexandregenon on 08/01/17.
   */
-class ReconciliationSpec extends TestKit(ActorSystem("TestActorSystem"))
+/*class ReconciliationSpec extends TestKit(ActorSystem("TestActorSystem"))
   with ImplicitSender
   with Matchers
   with FlatSpecLike
@@ -66,4 +67,4 @@ class ReconciliationSpec extends TestKit(ActorSystem("TestActorSystem"))
     assert(checkSpecificSong(receivedList))
   }
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
-}
+}*/

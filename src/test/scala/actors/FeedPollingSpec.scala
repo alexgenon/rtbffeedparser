@@ -1,4 +1,4 @@
-package feedpolling
+package actors
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}

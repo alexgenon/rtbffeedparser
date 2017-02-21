@@ -1,13 +1,12 @@
-package feedpolling
+package actors
 
-import domain.Song
-import rtbfjsonprotocol.RtbfJsonProtocol
-import feedpolling.FeedPollingActor._
-import songrepository.SongRepositoryActor.NewFeed
 import java.net.URL
 
-import akka.actor.{ActorRef, LoggingFSM}
+import actors.FeedPollingActor._
+import actors.SongRepositoryActor.NewFeed
+import akka.actor.{ActorRef, FSM, LoggingFSM}
 import akka.pattern.pipe
+import protocols.RtbfJsonProtocol
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -22,7 +21,7 @@ import scala.util.{Failure, Success, Try}
 trait FeedPollingIO {
   //todo : refactor to use akka-http
   //todo : proper validation check for URL
-  def isUrlValid(url:URL) =  true
+  def isUrlValid(url:URL) =  url.toString.length>0
   def pollFeed (targetUrl:URL):String= {
     val result = scala.io.Source.fromURL(targetUrl)
     result.mkString
@@ -36,9 +35,10 @@ class FeedPollingActor (reconciliationActor: ActorRef) extends LoggingFSM[State,
 
   def checkConfigAndMoveOn(config:Config) = {
     if(isConfigValid(config)) {
-      goto(Idle) using config
-    }
-    else stay using config
+      log.info("Moving on since config {} is valid",config)
+      goto(Polling) using config
+    } else
+      stay using config
   }
 
   private def setTime: Unit = {
@@ -91,17 +91,20 @@ class FeedPollingActor (reconciliationActor: ActorRef) extends LoggingFSM[State,
       listOfSongsTried match {
         case Success(listOfSongs) => reconciliationActor ! NewFeed(listOfSongs)
         case Failure(e) => log.warning("Feed could not be parsed, error: {}",e)
-        //todo circuit breaker (?)
       }
+      goto(Idle)
+    }
+    case Event(error:Any ,currentConfig) => {
+      log.warning("Could not retrieve feed, error: {}",error)
+      //todo circuit breaker (?)
       goto(Idle)
     }
   }
 
   onTransition {
     case _ -> Polling => {
-      //todo circuit breaker pattern !!!
       // We come from Idle => we are sure that urlPrefix is not empty
-      val url = stateData.urlPrefix.get
+      val url = nextStateData.urlPrefix.get
       log.info("Polling feed : {}",url)
       val futureFeed = Future(pollFeed(url))
       pipe(futureFeed) to self
@@ -115,7 +118,7 @@ class FeedPollingActor (reconciliationActor: ActorRef) extends LoggingFSM[State,
 }
 
 object FeedPollingActor {
-  private[feedpolling] val POLLTIMERNAME = "PollInterval"
+  private[actors] val POLLTIMERNAME = "PollInterval"
   case object TimeToPoll
   case object PollNow
   case class UpdatePollInterval(timeInterval: FiniteDuration)
